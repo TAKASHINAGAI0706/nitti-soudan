@@ -123,9 +123,14 @@
 
   <div class="card">
     <h2>作業内容</h2>
-    <label class="fld">内容</label>
+    <label class="fld">内容（プルダウンで選択・編集可）</label>
+    <select id="naiyoSel"></select>
     <textarea id="naiyo" placeholder="汚水ポンプに異物噛み込みの可能性があるため、
 ポンプの引き上げおよび異物除去作業"></textarea>
+    <div class="mini-row">
+      <button class="mini" id="naiyoAdd" type="button">＋ 今の内容をリストに登録</button>
+      <button class="mini del" id="naiyoDel" type="button">選択を削除</button>
+    </div>
 
     <label class="chk"><input type="checkbox" id="pumpOn" checked>対象物を記載する</label>
     <input id="pump" type="text" placeholder="KDP-1-3　1号ポンプ">
@@ -173,13 +178,16 @@ const F = {
 const pumpOn   = document.getElementById('pumpOn');
 const jikanOn  = document.getElementById('jikanOn');
 const genbaSel = document.getElementById('genbaSel');
+const naiyoSel = document.getElementById('naiyoSel');
 const bashoSel = document.getElementById('bashoSel');
 const previewEl = document.getElementById('preview');
 
-// 現場・作業場所の選択肢（自分で編集できる）
+// 現場・内容・作業場所の選択肢（自分で編集できる）
 const DEFAULT_GENBA = ['ハーバーランド'];
+const DEFAULT_NAIYO = ['汚水ポンプに異物噛み込みの可能性があるため、\nポンプの引き上げおよび異物除去作業'];
 const DEFAULT_BASHO = ['umie地下駐車場西　サウスモール客用EVホール付近'];
 let genbaList = DEFAULT_GENBA.slice();
+let naiyoList = DEFAULT_NAIYO.slice();
 let bashoList = DEFAULT_BASHO.slice();
 
 function v(el){ return el.value.trim(); }
@@ -217,6 +225,7 @@ function renderSel(sel, list, input){
   sel.value = list.includes(input.value) ? input.value : '';
 }
 function renderGenbaSel(){ renderSel(genbaSel, genbaList, F.genba); }
+function renderNaiyoSel(){ renderSel(naiyoSel, naiyoList, F.naiyo); }
 function renderBashoSel(){ renderSel(bashoSel, bashoList, F.basho); }
 
 function update(){
@@ -226,7 +235,7 @@ function update(){
 }
 
 function save(){
-  const data = { genbaList, bashoList, pumpOn: pumpOn.checked, jikanOn: jikanOn.checked };
+  const data = { genbaList, naiyoList, bashoList, pumpOn: pumpOn.checked, jikanOn: jikanOn.checked };
   for(const k in F) data[k] = F[k].value;
   try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){}
 }
@@ -239,6 +248,7 @@ function load(){
     if(typeof data.pumpOn === 'boolean') pumpOn.checked = data.pumpOn;
     if(typeof data.jikanOn === 'boolean') jikanOn.checked = data.jikanOn;
     if(Array.isArray(data.genbaList) && data.genbaList.length) genbaList = data.genbaList;
+    if(Array.isArray(data.naiyoList) && data.naiyoList.length) naiyoList = data.naiyoList;
     if(Array.isArray(data.bashoList) && data.bashoList.length) bashoList = data.bashoList;
   }
 }
@@ -256,6 +266,9 @@ jikanOn.addEventListener('change', update);
 // プルダウンで選んだら入力欄に反映
 genbaSel.addEventListener('change', ()=>{
   if(genbaSel.value){ F.genba.value = genbaSel.value; update(); }
+});
+naiyoSel.addEventListener('change', ()=>{
+  if(naiyoSel.value){ F.naiyo.value = naiyoSel.value; update(); }
 });
 bashoSel.addEventListener('change', ()=>{
   if(bashoSel.value){ F.basho.value = bashoSel.value; update(); }
@@ -281,6 +294,11 @@ document.getElementById('genbaAdd').addEventListener('click',
   ()=> addTo(genbaList, F.genba, renderGenbaSel, genbaSel, '現場'));
 document.getElementById('genbaDel').addEventListener('click',
   ()=> delFrom(()=>genbaList, l=>genbaList=l, renderGenbaSel, genbaSel));
+
+document.getElementById('naiyoAdd').addEventListener('click',
+  ()=> addTo(naiyoList, F.naiyo, renderNaiyoSel, naiyoSel, '内容'));
+document.getElementById('naiyoDel').addEventListener('click',
+  ()=> delFrom(()=>naiyoList, l=>naiyoList=l, renderNaiyoSel, naiyoSel));
 
 document.getElementById('bashoAdd').addEventListener('click',
   ()=> addTo(bashoList, F.basho, renderBashoSel, bashoSel, '作業場所'));
@@ -311,6 +329,7 @@ document.getElementById('clearBtn').addEventListener('click', ()=>{
   F.genba.value = ''; F.jikan.value = '';
   F.naiyo.value = ''; F.pump.value = ''; F.basho.value = '';
   renderGenbaSel();
+  renderNaiyoSel();
   renderBashoSel();
   update();
   toast('クリアしました');
@@ -318,6 +337,7 @@ document.getElementById('clearBtn').addEventListener('click', ()=>{
 
 load();
 renderGenbaSel();
+renderNaiyoSel();
 renderBashoSel();
 update();
 
