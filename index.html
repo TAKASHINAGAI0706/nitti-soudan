@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日程相談アプリ</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#06c755">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="日程相談">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<style>
+  :root{
+    --accent:#06c755;      /* LINEグリーン */
+    --accent-d:#04a548;
+    --bg:#eef1f4;
+    --card:#ffffff;
+    --line:#dfe4ea;
+    --text:#1d2733;
+    --muted:#6b7785;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;}
+
+  header{
+    position:sticky;top:0;z-index:10;
+    background:#1d2733;color:#fff;
+    padding:12px 16px;box-shadow:0 2px 6px rgba(0,0,0,.2);
+  }
+  header h1{margin:0;font-size:17px;font-weight:700;letter-spacing:.5px;}
+
+  .wrap{max-width:560px;margin:0 auto;padding:14px 12px 120px;}
+
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05);
+  }
+  .card h2{margin:0 0 10px;font-size:14px;color:var(--accent-d);
+    border-left:4px solid var(--accent);padding-left:8px;}
+
+  label.fld{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px;}
+  input,textarea,select{
+    width:100%;font-family:inherit;font-size:16px;color:var(--text);
+    border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fafbfc;
+  }
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);background:#fff;}
+  textarea{resize:vertical;min-height:54px;}
+  select{appearance:none;-webkit-appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' fill='none' stroke='%236b7785' stroke-width='2'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;}
+
+  /* チェックボックス */
+  .chk{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);
+    margin:12px 0 6px;cursor:pointer;user-select:none;}
+  .chk input{width:20px;height:20px;flex:0 0 20px;accent-color:var(--accent);}
+
+  /* 小ボタン（場所の登録／削除） */
+  .mini-row{display:flex;gap:8px;margin-top:6px;}
+  .mini{flex:1;border:1px solid #cdeedd;background:#f1fbf5;color:var(--accent-d);
+    border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+  .mini:active{background:#e3f6ec;}
+  .mini.del{flex:0 0 96px;background:#fff0f0;color:#e03131;border-color:#ffd9d9;}
+  .mini.del:active{background:#ffe0e0;}
+
+  /* プレビュー */
+  .preview{
+    white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.7;
+    background:#f7f9fb;border:1px solid var(--line);border-radius:8px;padding:12px;min-height:80px;
+  }
+
+  /* 下部の固定ボタン */
+  .bar{
+    position:fixed;left:0;right:0;bottom:0;z-index:20;
+    background:rgba(255,255,255,.97);border-top:1px solid var(--line);
+    padding:10px 12px;display:flex;gap:8px;max-width:560px;margin:0 auto;
+    box-shadow:0 -2px 8px rgba(0,0,0,.06);
+  }
+  .bar button{
+    flex:1;border:none;border-radius:10px;padding:14px 6px;font-size:15px;font-weight:700;
+    cursor:pointer;font-family:inherit;
+  }
+  .btn-line{background:var(--accent);color:#fff;}
+  .btn-line:active{background:var(--accent-d);}
+  .btn-copy{background:#e9eef3;color:var(--text);flex:0 0 96px;}
+  .btn-copy:active{background:#dde3ea;}
+  .btn-clear{background:#fff0f0;color:#e03131;flex:0 0 72px;}
+  .btn-clear:active{background:#ffe0e0;}
+
+  .toast{
+    position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);
+    background:#1d2733;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;
+    opacity:0;pointer-events:none;transition:.25s;z-index:30;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<header><h1>日程相談アプリ</h1></header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>あいさつ文</h2>
+    <textarea id="greeting">日程の相談です。
+日程のご都合をお聞かせください。</textarea>
+  </div>
+
+  <div class="card">
+    <h2>現場・希望時間</h2>
+    <label class="fld">現場（プルダウンで選択・編集可）</label>
+    <select id="genbaSel"></select>
+    <input id="genba" type="text" placeholder="ハーバーランド">
+    <div class="mini-row">
+      <button class="mini" id="genbaAdd" type="button">＋ 今の現場をリストに登録</button>
+      <button class="mini del" id="genbaDel" type="button">選択を削除</button>
+    </div>
+
+    <label class="chk"><input type="checkbox" id="jikanOn" checked>希望時間を記載する</label>
+    <input id="jikan" type="text" placeholder="21時30分以降">
+  </div>
+
+  <div class="card">
+    <h2>作業内容</h2>
+    <label class="fld">内容</label>
+    <textarea id="naiyo" placeholder="汚水ポンプに異物噛み込みの可能性があるため、
+ポンプの引き上げおよび異物除去作業"></textarea>
+
+    <label class="chk"><input type="checkbox" id="pumpOn" checked>対象物を記載する</label>
+    <input id="pump" type="text" placeholder="KDP-1-3　1号ポンプ">
+
+    <label class="fld">作業場所（プルダウンで選択・編集可）</label>
+    <select id="bashoSel"></select>
+    <textarea id="basho" placeholder="umie地下駐車場西　サウスモール客用EVホール付近"></textarea>
+    <div class="mini-row">
+      <button class="mini" id="bashoAdd" type="button">＋ 今の場所をリストに登録</button>
+      <button class="mini del" id="bashoDel" type="button">選択を削除</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>結びの文（任意）</h2>
+    <textarea id="closing">ご確認のほどよろしくお願いいたします。</textarea>
+  </div>
+
+  <div class="card">
+    <h2>プレビュー</h2>
+    <div class="preview" id="preview"></div>
+  </div>
+
+</div>
+
+<div class="bar">
+  <button class="btn-clear" id="clearBtn">クリア</button>
+  <button class="btn-copy" id="copyBtn">コピー</button>
+  <button class="btn-line" id="lineBtn">LINEで送る</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = 'nittei-soudan-v1';
+const F = {
+  greeting: document.getElementById('greeting'),
+  genba:    document.getElementById('genba'),
+  jikan:    document.getElementById('jikan'),
+  naiyo:    document.getElementById('naiyo'),
+  pump:     document.getElementById('pump'),
+  basho:    document.getElementById('basho'),
+  closing:  document.getElementById('closing'),
+};
+const pumpOn   = document.getElementById('pumpOn');
+const jikanOn  = document.getElementById('jikanOn');
+const genbaSel = document.getElementById('genbaSel');
+const bashoSel = document.getElementById('bashoSel');
+const previewEl = document.getElementById('preview');
+
+// 現場・作業場所の選択肢（自分で編集できる）
+const DEFAULT_GENBA = ['ハーバーランド'];
+const DEFAULT_BASHO = ['umie地下駐車場西　サウスモール客用EVホール付近'];
+let genbaList = DEFAULT_GENBA.slice();
+let bashoList = DEFAULT_BASHO.slice();
+
+function v(el){ return el.value.trim(); }
+
+function buildText(){
+  let txt = v(F.greeting);
+
+  const blocks = [];
+  if(v(F.genba))  blocks.push('現場；' + v(F.genba));
+  if(jikanOn.checked && v(F.jikan)) blocks.push('希望時間；' + v(F.jikan));
+  if(v(F.naiyo))  blocks.push('内容；\n' + v(F.naiyo));
+  if(pumpOn.checked && v(F.pump)) blocks.push('対象物：\n' + v(F.pump));
+  if(v(F.basho))  blocks.push('作業場所：\n' + v(F.basho));
+
+  if(blocks.length) txt += '\n\n' + blocks.join('\n\n');
+  if(v(F.closing))  txt += '\n\n' + v(F.closing);
+  return txt;
+}
+
+// チェック状態に合わせて入力欄の見た目を切り替える
+function dim(el, on){
+  el.disabled = !on;
+  el.style.opacity = on ? '1' : '.45';
+}
+function syncFields(){
+  dim(F.jikan, jikanOn.checked);
+  dim(F.pump, pumpOn.checked);
+}
+
+// プルダウンを作り直す（共通）
+function renderSel(sel, list, input){
+  sel.innerHTML = '';
+  sel.add(new Option('— 選ぶ —', ''));
+  list.forEach(x => sel.add(new Option(x, x)));
+  sel.value = list.includes(input.value) ? input.value : '';
+}
+function renderGenbaSel(){ renderSel(genbaSel, genbaList, F.genba); }
+function renderBashoSel(){ renderSel(bashoSel, bashoList, F.basho); }
+
+function update(){
+  syncFields();
+  previewEl.textContent = buildText();
+  save();
+}
+
+function save(){
+  const data = { genbaList, bashoList, pumpOn: pumpOn.checked, jikanOn: jikanOn.checked };
+  for(const k in F) data[k] = F[k].value;
+  try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){}
+}
+
+function load(){
+  let data = null;
+  try{ data = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
+  if(data){
+    for(const k in F) if(data[k] != null) F[k].value = data[k];
+    if(typeof data.pumpOn === 'boolean') pumpOn.checked = data.pumpOn;
+    if(typeof data.jikanOn === 'boolean') jikanOn.checked = data.jikanOn;
+    if(Array.isArray(data.genbaList) && data.genbaList.length) genbaList = data.genbaList;
+    if(Array.isArray(data.bashoList) && data.bashoList.length) bashoList = data.bashoList;
+  }
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+for(const k in F) F[k].addEventListener('input', update);
+pumpOn.addEventListener('change', update);
+jikanOn.addEventListener('change', update);
+
+// プルダウンで選んだら入力欄に反映
+genbaSel.addEventListener('change', ()=>{
+  if(genbaSel.value){ F.genba.value = genbaSel.value; update(); }
+});
+bashoSel.addEventListener('change', ()=>{
+  if(bashoSel.value){ F.basho.value = bashoSel.value; update(); }
+});
+
+// 入力欄の内容をリストに登録 / 選択中をリストから削除（共通）
+function addTo(list, input, render, sel, label){
+  const t = v(input);
+  if(!t){ toast(label + 'が空です'); return; }
+  if(list.includes(t)){ toast('登録済みです'); return; }
+  list.push(t); render(); sel.value = t; update();
+  toast('リストに登録しました');
+}
+function delFrom(getList, setList, render, sel){
+  const t = sel.value;
+  if(!t){ toast('プルダウンで削除する項目を選んでください'); return; }
+  setList(getList().filter(x => x !== t));
+  render(); update();
+  toast('削除しました');
+}
+
+document.getElementById('genbaAdd').addEventListener('click',
+  ()=> addTo(genbaList, F.genba, renderGenbaSel, genbaSel, '現場'));
+document.getElementById('genbaDel').addEventListener('click',
+  ()=> delFrom(()=>genbaList, l=>genbaList=l, renderGenbaSel, genbaSel));
+
+document.getElementById('bashoAdd').addEventListener('click',
+  ()=> addTo(bashoList, F.basho, renderBashoSel, bashoSel, '作業場所'));
+document.getElementById('bashoDel').addEventListener('click',
+  ()=> delFrom(()=>bashoList, l=>bashoList=l, renderBashoSel, bashoSel));
+
+document.getElementById('copyBtn').addEventListener('click', async ()=>{
+  const txt = buildText();
+  try{
+    await navigator.clipboard.writeText(txt);
+    toast('コピーしました');
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+    toast('コピーしました');
+  }
+});
+
+document.getElementById('lineBtn').addEventListener('click', ()=>{
+  const txt = buildText();
+  const url = 'https://line.me/R/msg/text/?' + encodeURIComponent(txt);
+  window.location.href = url;
+});
+
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  if(!confirm('入力内容（現場・時間・作業内容）を消去します。よろしいですか？')) return;
+  F.genba.value = ''; F.jikan.value = '';
+  F.naiyo.value = ''; F.pump.value = ''; F.basho.value = '';
+  renderGenbaSel();
+  renderBashoSel();
+  update();
+  toast('クリアしました');
+});
+
+load();
+renderGenbaSel();
+renderBashoSel();
+update();
+
+// Service Worker（オフライン対応）
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=> navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
